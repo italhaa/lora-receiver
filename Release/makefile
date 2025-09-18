@@ -61,8 +61,8 @@ all: main-build
 main-build: LR1121.v4.elf secondary-outputs
 
 # Tool invocations
-LR1121.v4.elf LR1121.v4.map: $(OBJS) $(USER_OBJS) C:\Users\Muhammad\ Talha\Work\lr1121_dev_board-main\STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "LR1121.v4.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Muhammad Talha\Work\lr1121_dev_board-main\STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="LR1121.v4.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+LR1121.v4.elf LR1121.v4.map: $(OBJS) $(USER_OBJS) ../STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "LR1121.v4.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"../STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="LR1121.v4.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

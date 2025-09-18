@@ -1,6 +1,0 @@
-../Drivers/lr11xx_driver/src/lr11xx_lr_fhss.c:186:10:lr11xx_lr_fhss_get_nb_bits.isra	6
-../Drivers/lr11xx_driver/src/lr11xx_lr_fhss.c:108:17:lr11xx_lr_fhss_init	2
-../Drivers/lr11xx_driver/src/lr11xx_lr_fhss.c:125:10:lr11xx_lr_fhss_get_bit_delay_in_us	1
-../Drivers/lr11xx_driver/src/lr11xx_lr_fhss.c:134:17:lr11xx_lr_fhss_build_frame	2
-../Drivers/lr11xx_driver/src/lr11xx_lr_fhss.c:164:10:lr11xx_lr_fhss_get_time_on_air_in_ms	1
-../Drivers/lr11xx_driver/src/lr11xx_lr_fhss.c:170:14:lr11xx_lr_fhss_get_hop_sequence_count	3

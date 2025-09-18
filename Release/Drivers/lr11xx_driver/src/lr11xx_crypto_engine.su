@@ -3,11 +3,11 @@
 ../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:149:17:lr11xx_crypto_set_key	48	static
 ../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:176:17:lr11xx_crypto_derive_key	56	static
 ../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:204:17:lr11xx_crypto_process_join_accept	128	static
-../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:250:17:lr11xx_crypto_compute_aes_cmac	320	static
-../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:278:17:lr11xx_crypto_verify_aes_cmac	304	static
-../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:311:17:lr11xx_crypto_aes_encrypt_01	552	static
-../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:338:17:lr11xx_crypto_aes_encrypt	552	static
-../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:365:17:lr11xx_crypto_aes_decrypt	552	static
+../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:250:17:lr11xx_crypto_compute_aes_cmac	328	static
+../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:278:17:lr11xx_crypto_verify_aes_cmac	312	static
+../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:311:17:lr11xx_crypto_aes_encrypt_01	560	static
+../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:338:17:lr11xx_crypto_aes_encrypt	560	static
+../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:365:17:lr11xx_crypto_aes_decrypt	560	static
 ../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:392:17:lr11xx_crypto_store_to_flash	24	static
 ../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:411:17:lr11xx_crypto_restore_from_flash	24	static
 ../Drivers/lr11xx_driver/src/lr11xx_crypto_engine.c:430:17:lr11xx_crypto_set_parameter	32	static

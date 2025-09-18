@@ -1,2 +1,0 @@
-../Drivers/lr11xx_driver/src/lr11xx_radio_timings.c:112:10:lr11xx_radio_timings_get_delay_between_last_bit_sent_and_rx_done_in_us	2
-../Drivers/lr11xx_driver/src/lr11xx_radio_timings.c:120:10:lr11xx_radio_timings_get_delay_between_last_bit_sent_and_tx_done_in_us	2

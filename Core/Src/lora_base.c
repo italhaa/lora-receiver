@@ -3,6 +3,10 @@
  *
  *  Created on: Feb 27, 2025
  *  Author: b.jamin
+ *  
+ *  LoRa Hub Firmware - Hub-only implementation
+ *  This firmware is designed to run exclusively as a LoRa hub,
+ *  receiving data from multiple LoRa nodes and providing acknowledgments.
  */
 
 #include "lora_base.h"
@@ -16,10 +20,6 @@
 extern SPI_HandleTypeDef hspi1;
 
 /* Private structures */
-typedef enum Mode_e {
-  MODE_NODE,
-  MODE_HUB,
-} Mode;
 
 typedef struct transfer_status_s
 {
@@ -63,12 +63,6 @@ void rx_common(void);
 // Simple print function for debugging
 void simple_print(char* message);
 void print_received_data(uint8_t* data, uint8_t length);
-
-void init_tx_data(void);
-void increment_tx_data(void);
-void tx_data(void);
-void rx_listen_for_response(void);
-void rx_response_process(void);
 
 void rx_init(void);
 void rx_read_data(void);
@@ -123,11 +117,6 @@ uint8_t enable_ui_power = 0;
 
 #define BYTES_PER_FILE 131104
 #define PACKETS_PER_FILE BYTES_PER_FILE / (PAYLOAD_LENGTH - sizeof(TransferStatus))
-
-#define NODE_MINIMUM_TRANSMISSION_DELAY 10000 // ms delay to wait if trasmissions aren't landing
-#define NODE_ATTEMPTS_TO_REACH_HUB_BEFORE_WAIT 10
-#define NODE_IRQ_WATCHDOG_MS 10000
-#define NODE_RXTX_MODE_SWITCH_TIME_MS 55
 
 #define HUB_IRQ_WATCHDOG_MS 5 * 60000
 #define HUB_RXTX_MODE_SWITCH_TIME_MS 55
@@ -192,7 +181,6 @@ int8_t power_table[10]      = {-5, -2, 1, 4, 7, 10, 13, 16, 19, 22};
 uint8_t tx_buf[PAYLOAD_LENGTH];
 uint8_t rx_buf[PAYLOAD_LENGTH];
 
-Mode mode;
 uint8_t sizeOfTransferStatusInPayload = sizeof(TransferStatus);
 TransferStatus transferStatus = { 0 };
 TransmissionMetrics tcvrMetrics = { 0 };
@@ -202,37 +190,14 @@ uint8_t is_initialized = 0;
 uint8_t is_rx_pending = 0;
 uint8_t is_retransmit_requested = 0;
 uint32_t transaction_resume_time = 0;
-
-// Node Only
-uint8_t is_file_in_progress = 0;
-uint8_t hub_no_response_counter = NODE_ATTEMPTS_TO_REACH_HUB_BEFORE_WAIT;
     
 /* Unit logic */
 
 void lora_system_init(void){
 
-    mode = MODE_NODE;
-    if (HAL_GetUIDw0() == 4063308){
-        /*
-            Hub and Node Selection based on STM32 serial number of boards used in development
-            PI HAL_GetUIDw2()  thru HAL_GetUIDw0() : 540618828 :: 1362120706 :: 4063308	
-            STM32 HAL_GetUIDw2() thru HAL_GetUIDw0() : 540618828 :: 1362120710 :: 2162755	
-        */
-        mode = MODE_HUB;
-    }
-    #define PI // overrides the serial number based hub assignment above
-	#ifdef PI
-    mode = MODE_HUB;
-	#endif
-
     // Print startup message
-    if (mode == MODE_HUB) {
-        simple_print("\n\n=== LoRa Hub Mode - Simple Communication Test ===\n");
-        simple_print("Waiting for packets from transmitter...\n\n");
-    } else {
-        simple_print("\n\n=== LoRa Node Mode - Simple Communication Test ===\n");
-        simple_print("Transmitting packets with 16 random values...\n\n");
-    }
+    simple_print("\n\n=== LoRa Hub Mode - Hub Firmware ===\n");
+    simple_print("Hub-only firmware waiting for packets from nodes...\n\n");
 
     lora_power_2p4G = 2;
     lora_power_1p9G = 2;
@@ -242,94 +207,31 @@ void lora_system_init(void){
 
 void lora_system_process(void){
 
-    /*
-        Node
-            CAD
-            Tx
-            Rx Response
-                Retransmit or Transmit Next
-            Rx
-            if in Voltage Transfer : Tell Other Nodes to Wait
-            Tx pack stat - {serial, file id, packet id, bytes rcvd, CRC} 
-            Rx
-    */
+    // Hub-only processing loop
+    if (transaction_resume_time > HAL_GetTick()) {
+        // wait : used for power change from ui button
+    } else if (is_initialized == 0){
+        is_initialized = 1;
+        lr1121_init();
+        rx_init();
+    } else if ( HAL_GPIO_ReadPin(LR_IRQ_GPIO_Port, LR_IRQ_Pin) == 1 ){
+        if (is_rx_pending){
+            is_rx_pending = 0;		
+            rx_read_data();    
+            // TODO : no response if read times out or non system packet received
+            build_packet_response();
+            HAL_Delay(HUB_RXTX_MODE_SWITCH_TIME_MS);
+            tx_response();
+        } else {
+            is_rx_pending = 1;		
+            rx_init(); // setup rx mode
+        }
 
-    switch (mode) {
-        case MODE_NODE : 
+        last_irq_action = HAL_GetTick();
 
-            if (transaction_resume_time > HAL_GetTick()) {
-                // wait ... Add Transaction Resume Time to prevent holding up system on long delay
-                // alt HAL_Delay(NODE_MINIMUM_TRANSMISSION_DELAY);
-                
-            } else if (is_initialized == 0) {
-                is_initialized = 1;
-                lr1121_init();
-                if (is_file_in_progress == 0){
-                    init_tx_data();
-                }
-                tx_data();
-            } else if ( HAL_GPIO_ReadPin(LR_IRQ_GPIO_Port, LR_IRQ_Pin) == 1 ) {
-                if (is_rx_pending){
-                    is_rx_pending = 0;
-                    rx_response_process();
-                    // TODO : For Readability - handling to prepare next packet here 
-                    if (is_file_in_progress == 1){
-                        HAL_Delay(NODE_RXTX_MODE_SWITCH_TIME_MS); // lack of delays here cause CRC errors    
-                        tx_data();
-                        HAL_Delay(NODE_RXTX_MODE_SWITCH_TIME_MS); // lack of delays here cause CRC errors    
-                    } else {
-                        transaction_resume_time = HAL_GetTick() + (10 * NODE_MINIMUM_TRANSMISSION_DELAY);
-                        lr11xx_system_sleep_cfg_t sleep_config = {
-                            .is_rtc_timeout = 0,
-                            .is_warm_start = 1 
-                        };
-                        lr11xx_system_set_sleep( NULL, sleep_config, 0 );
-                    }
-                } else {
-                    is_rx_pending = 1;		
-                    // HAL_Delay(NODE_RXTX_MODE_SWITCH_TIME_MS);   
-                    rx_listen_for_response();
-                }
-
-                last_irq_action = HAL_GetTick();
-            } else if (HAL_GetTick() > last_irq_action + NODE_IRQ_WATCHDOG_MS ){
-                is_initialized = 0;
-                last_irq_action = HAL_GetTick();
-            }
-
-            break;
-
-        case MODE_HUB : 
-            if (transaction_resume_time > HAL_GetTick()) {
-                // wait : used for power change from ui button
-            } else if (is_initialized == 0){
-                is_initialized = 1;
-                lr1121_init();
-                rx_init();
-            } else if ( HAL_GPIO_ReadPin(LR_IRQ_GPIO_Port, LR_IRQ_Pin) == 1 ){
-                if (is_rx_pending){
-                    is_rx_pending = 0;		
-                    rx_read_data();    
-                    // TODO : no response if read times out or non system packet received
-                    build_packet_response();
-                    HAL_Delay(HUB_RXTX_MODE_SWITCH_TIME_MS);
-                    tx_response();
-                } else {
-                    is_rx_pending = 1;		
-                    rx_init(); // setup rx mode
-                }
-
-                last_irq_action = HAL_GetTick();
-
-            } else if (HAL_GetTick() > last_irq_action + HUB_IRQ_WATCHDOG_MS ) {
-                is_initialized = 0;
-                last_irq_action = HAL_GetTick();
-            }
-
-            break;
-
-        default :
-            break;
+    } else if (HAL_GetTick() > last_irq_action + HUB_IRQ_WATCHDOG_MS ) {
+        is_initialized = 0;
+        last_irq_action = HAL_GetTick();
     }
 }
 
@@ -344,12 +246,12 @@ uint8_t lora_system_transmit_power(uint8_t boost){
         lora_power = (lora_power + 1) % 10;
         is_initialized = 0;
     }
-    transaction_resume_time = HAL_GetTick() + NODE_MINIMUM_TRANSMISSION_DELAY;
+    transaction_resume_time = HAL_GetTick() + 1000; // Brief delay for power change
     return lora_power_2p4G;
 }
 
 void lr1121_init(void) {
-    // system init common for both rx and tx
+    // system initialization for LoRa hub
 
     HAL_GPIO_WritePin(LR_RESET_GPIO_Port, LR_RESET_Pin, GPIO_PIN_SET);
     HAL_Delay(10);
@@ -446,139 +348,6 @@ void rx_common(void) {
     if (tcvrMetrics.min_snr > rx_packet_stats.snr_pkt_in_db || tcvrMetrics.min_snr == 0){
         tcvrMetrics.min_snr = rx_packet_stats.snr_pkt_in_db;
     }
-}
-
-/* Node Functions */
-void tx_data(void) {
-    lr11xx_system_get_and_clear_irq_status(NULL, &Irq_Status);
-	lr11xx_system_clear_irq_status(NULL, LR11XX_SYSTEM_IRQ_ALL_MASK ); 
-	lr11xx_system_set_dio_irq_params(NULL, IRQ_MASK, 0 );
-
-	lr11xx_radio_set_lora_pkt_params(NULL, &lora_pkt_params_tx );
-    lr11xx_regmem_write_buffer8(NULL, tx_buf, lora_pkt_params_tx.pld_len_in_bytes); // (offset,*data,length) lora_pkt_params.pld_len_in_bytes=PAYLOAD_LENGTH;
-
-    // Print transmission info
-    char buffer[128];
-    sprintf(buffer, "TX: File ID %d, 16 random values: ", transferStatus.fileId);
-    simple_print(buffer);
-    for(int i = 9; i < 25; i++) {
-        sprintf(buffer, "%d ", tx_buf[i]);
-        simple_print(buffer);
-    }
-    simple_print("\n");
-
-    ui_show_scan();
-    // consider lr11xx_radio_auto_tx_rx(NULL,); // but may not work with CAD and may affect interrupt based handling
-    lr11xx_radio_set_cad_params(NULL, &cadParams);
-    // lr11xx_radio_set_tx_with_timeout_in_rtc_step(NULL, 2000); // implied in cadParams 
-    lr11xx_radio_set_cad(NULL);
-    // delay post CAD prevents CRC errors
-    ui_show_tx(); 
-    tcvrMetrics.tx_cnt++;
-}
-
-void rx_listen_for_response(void){
-	lr11xx_system_clear_irq_status(NULL, LR11XX_SYSTEM_IRQ_ALL_MASK );
-	lr11xx_system_set_dio_irq_params(NULL, IRQ_MASK, 0 ); 
-	lr11xx_radio_set_lora_pkt_params(NULL, &lora_pkt_params_rx );
-
-	lr11xx_radio_set_rx(NULL, 2000);
-    ui_show_rx();
-    is_rx_pending = 1;
-};
-
-void rx_response_process(void){
-    rx_common();
-    ui_show_rx();
-
-    uint8_t isRx = 0;
-    uint8_t isError = 0;
-
-    if( ( (Irq_Status & LR11XX_SYSTEM_IRQ_RX_DONE) == LR11XX_SYSTEM_IRQ_RX_DONE) && ( (Irq_Status & LR11XX_SYSTEM_IRQ_CRC_ERROR ) == 0) ) {
-        lr11xx_regmem_read_buffer8( NULL, rx_buf, rx_buffer_status.buffer_start_pointer, rx_buffer_status.pld_len_in_bytes );
-        /* 
-            TODO : verify response packet is for corrent source, file, packet and packet size 
-            packet number and length should mis-match == error
-            sourceId, fileId, fileTypeId mismatch == wait, packet to / from other device   
-        */
-        if (rx_buf[6] == (uint8_t) (transferStatus.packetId & 0xFF) && rx_buf[7] == (uint8_t) (transferStatus.packetId >> 8) ){
-            if (rx_buf[8] == transferStatus.packetLength){
-                increment_tx_data();
-                isRx = 1;
-                ui_show_rx();
-            } else {
-                isRx = 1;
-                isError = 1;
-            }
-        } else {
-            isRx = 1;
-            isError = 1;
-        }
-    } else if( ( (Irq_Status & LR11XX_SYSTEM_IRQ_TIMEOUT) == LR11XX_SYSTEM_IRQ_TIMEOUT)) {
-        tcvrMetrics.rx_timeouts++;
-    } else if( (Irq_Status & LR11XX_SYSTEM_IRQ_CRC_ERROR ) == LR11XX_SYSTEM_IRQ_CRC_ERROR) {
-        isRx = 1;
-        isError = 1;
-    } else if( (Irq_Status & LR11XX_SYSTEM_IRQ_CAD_DONE ) == LR11XX_SYSTEM_IRQ_CAD_DONE && (Irq_Status & LR11XX_SYSTEM_IRQ_CAD_DETECTED ) == LR11XX_SYSTEM_IRQ_CAD_DETECTED) {
-        tcvrMetrics.cad_delay++;
-        transaction_resume_time = HAL_GetTick() + NODE_MINIMUM_TRANSMISSION_DELAY;
-    } else {
-        isError = 1;
-    }
-    
-    if (isRx > 0){
-        tcvrMetrics.rx_cnt++;
-        hub_no_response_counter = NODE_ATTEMPTS_TO_REACH_HUB_BEFORE_WAIT; // reload
-    } else {
-        hub_no_response_counter--;
-    }
-
-    if (hub_no_response_counter == 0){
-        // TODO : Add wait if no packets have been transferred (w/ response) in x attempts 
-        transaction_resume_time = HAL_GetTick() + NODE_MINIMUM_TRANSMISSION_DELAY;
-        hub_no_response_counter = NODE_ATTEMPTS_TO_REACH_HUB_BEFORE_WAIT;  // reload
-    }
-
-    if (isError > 0){
-        tcvrMetrics.rx_errors++;
-    }
-
-    // TODO : is_retransmit_requested = 1;
-    lr11xx_regmem_clear_rxbuffer(NULL);
-};
-
-void init_tx_data(void) {
-    transferStatus.packetSource = (uint16_t) HAL_GetUIDw0() & 0xFFFF;
-    transferStatus.fileType = 1; // uint8_t
-    transferStatus.fileVersion = 2; // uint8_t
-    transferStatus.fileId++; // uint16_t
-    transferStatus.packetId = 0; // uint16_t
-    transferStatus.packetLength = 25; // Simple packet: 9 bytes header + 16 bytes data
-
-    tx_buf[0] = (uint8_t) transferStatus.packetSource & 0xFF;
-    tx_buf[1] = (uint8_t) (transferStatus.packetSource >> 8);
-    tx_buf[2] = transferStatus.fileType;
-    tx_buf[3] = transferStatus.fileVersion;
-    tx_buf[4] = (uint8_t) transferStatus.fileId & 0xFF;
-    tx_buf[5] = (uint8_t) (transferStatus.fileId >> 8);
-    tx_buf[6] = (uint8_t) transferStatus.packetId & 0xFF;
-    tx_buf[7] = (uint8_t) (transferStatus.packetId >> 8);
-    tx_buf[8] = transferStatus.packetLength;
-
-    // Generate 16 random binary values
-    for(uint16_t itt = 0; itt < 16; itt++){
-        tx_buf[9 + itt] = (uint8_t)(HAL_GetTick() + itt) % 256; // Simple pseudo-random
-    }
-    
-    is_file_in_progress = 0; // Single packet mode
-    tcvrMetrics.last_file_capture_start_time = HAL_GetTick();
-}
-
-void increment_tx_data(void) {
-    // Simple single packet mode - just reinitialize for next transmission
-    HAL_Delay(5000); // Wait 5 seconds between transmissions
-    init_tx_data(); // Generate new packet with new random data
-    is_file_in_progress = 0; // Single packet mode
 }
 
 /* Hub Functions */

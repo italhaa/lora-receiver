@@ -1,8 +1,0 @@
-../Drivers/lr11xx_driver/src/lr11xx_regmem.c:150:17:lr11xx_regmem_write_regmem32	3
-../Drivers/lr11xx_driver/src/lr11xx_regmem.c:168:17:lr11xx_regmem_read_regmem32	4
-../Drivers/lr11xx_driver/src/lr11xx_regmem.c:191:17:lr11xx_regmem_write_mem8	1
-../Drivers/lr11xx_driver/src/lr11xx_regmem.c:202:17:lr11xx_regmem_read_mem8	1
-../Drivers/lr11xx_driver/src/lr11xx_regmem.c:212:17:lr11xx_regmem_write_buffer8	1
-../Drivers/lr11xx_driver/src/lr11xx_regmem.c:223:17:lr11xx_regmem_read_buffer8	1
-../Drivers/lr11xx_driver/src/lr11xx_regmem.c:237:17:lr11xx_regmem_clear_rxbuffer	1
-../Drivers/lr11xx_driver/src/lr11xx_regmem.c:247:17:lr11xx_regmem_write_regmem32_mask	1

@@ -1,6 +1,0 @@
-../Drivers/lr11xx_driver/src/lr11xx_rttof.c:92:17:lr11xx_rttof_set_address	1
-../Drivers/lr11xx_driver/src/lr11xx_rttof.c:107:17:lr11xx_rttof_set_request_address	1
-../Drivers/lr11xx_driver/src/lr11xx_rttof.c:121:17:lr11xx_rttof_set_rx_tx_delay_indicator	1
-../Drivers/lr11xx_driver/src/lr11xx_rttof.c:135:17:lr11xx_rttof_set_parameters	1
-../Drivers/lr11xx_driver/src/lr11xx_rttof.c:144:17:lr11xx_rttof_get_raw_result	1
-../Drivers/lr11xx_driver/src/lr11xx_rttof.c:157:9:lr11xx_rttof_distance_raw_to_meter	5

@@ -3,6 +3,8 @@
  *
  *  Created on: Feb 27, 2025
  *  Author: b.jamin
+ *  
+ *  LoRa Hub Firmware Header - Hub-only implementation
  */
 
 #ifndef LORA_BASE_H
