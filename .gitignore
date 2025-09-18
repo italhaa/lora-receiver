@@ -1,5 +1,53 @@
+########################################
+# Git ignore for STM32/Embedded project
+# Keep only important source and config
+########################################
+
+# Build directories
+Debug/
+Release/
+build/
+out/
+.dep/
+.cache/
+
+# Compiled objects and deps
+*.o
+*.d
+*.su
+*.lst
+*.map
+*.elf
+*.hex
+*.bin
+*.srec
+*.list
+*.size
+*.a
+
+# STM32CubeIDE / Eclipse metadata
+.settings/
+.project
+.cproject
+*.launch
+.mxproject
+
+# VS Code
+.vscode/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.tmp
+*.bak
+
+# Generated or backup sources you don't want in VCS
+Core/Src/*.old
+Core/Inc/*.old
+
+# Project-specific exclusions
 Core/Inc/key.h
 Core/Src/key.c.old
 Core/Src/main_old.c.old
-Debug/
-.vscode
